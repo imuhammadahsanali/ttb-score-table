@@ -22,7 +22,7 @@ export default function GamesPage() {
 
   async function loadGames() {
     try {
-      const res = await fetch("http://localhost:4200/v2/games");
+      const res = await fetch("https://ttb-api.onrender.com/v2/games");
       const json = await res.json();
       setGames(json.games);
       setLoading(false);
