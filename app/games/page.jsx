@@ -43,7 +43,7 @@ export default function GamesPage() {
 
   useEffect(() => {
     loadGames();
-    const interval = setInterval(loadGames, 10000);
+    const interval = setInterval(loadGames, 5);
     return () => clearInterval(interval);
   }, []);
 
