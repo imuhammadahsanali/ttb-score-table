@@ -18,6 +18,10 @@ export default function GamesPage() {
   const [filtered, setFiltered] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  const [injuryData, setInjuryData] = useState(null);
+  const [showInjury, setShowInjury] = useState(false);
+
+
   const [sportFilter, setSportFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState(["Scheduled", "InProgress"]);
 
@@ -133,6 +137,24 @@ async function loadTeamLogos() {
     }
   }
 
+  async function fetchInjuries(sport, team) {
+    if (sport !== "nfl") {
+      alert("Injury data currently available for NFL only.");
+      return;
+    }
+
+    try {
+      const res = await fetch(`https://ttb-api.onrender.com/v2/injuries/nfl?team=${team}`);
+      const json = await res.json();
+      setInjuryData(json);
+      setShowInjury(true);
+    } catch (err) {
+      console.error("Error loading injuries:", err);
+    }
+  }
+
+
+
   useEffect(() => {
     let list = games;
 
@@ -231,7 +253,7 @@ async function loadTeamLogos() {
           return (
             <div key={g.id} style={gameCard}>
               {/* HEADER */}
-              <div style={cardHeader}>
+              {/* <div style={cardHeader}>
                 <img
                   src={LEAGUE_LOGOS[g.sport]}
                   style={{ height: 28, marginRight: 10 }}
@@ -247,7 +269,7 @@ async function loadTeamLogos() {
                     g.status
                   )}
                 </span>
-              </div>
+              </div> */}
 
               {/* TEAMS */}
               <div style={teamsRow}>
@@ -272,10 +294,37 @@ async function loadTeamLogos() {
                 </div>
               </div>
 
+              {/* INJURY BUTTON */}
+              {g.sport === "nfl" && (
+                <div style={injuryBtnRow}>
+                  <button
+                    style={injuryBtn}
+                    onClick={() => fetchInjuries(g.sport, g.home_team)}
+                  >
+                    {g.home_team} Injuries
+                  </button>
+
+                  <button
+                    style={injuryBtn}
+                    onClick={() => fetchInjuries(g.sport, g.away_team)}
+                  >
+                    {g.away_team} Injuries
+                  </button>
+                </div>
+              )}
+
 
               {/* DATE */}
               <div style={dateText}>
-                {new Date(g.game_date).toLocaleString("en-US")}
+                {
+                  new Date(g.game_date).toLocaleString("en-US", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    month: "short",
+                    day: "numeric",
+                    year: "numeric",
+                  })
+                }
 
                 {/* Tiny label */}
                 {getDateLabel(g.game_date) && (
@@ -302,27 +351,69 @@ async function loadTeamLogos() {
                 )}
               </div>
 
-              {/* ODDS */}
-              <div style={oddsBox}>
-                <div>
-                  <strong>ML:</strong>{" "}
-                  {odds?.moneyline
-                    ? `${odds.moneyline.home} / ${odds.moneyline.away}`
-                    : "N/A"}
+              {/* ODDS — ESPN STYLE */}
+              <div style={espnOddsBox}>
+                {/* Top Summary Row */}
+                <div style={oddsSummary}>
+                  ML: {g.home_team} {odds?.moneyline?.home ?? "N/A"} • 
+                  {g.away_team} {odds?.moneyline?.away ?? "N/A"} • 
+                  Total: {odds?.total?.value ?? "N/A"}
                 </div>
 
-                <div>
-                  <strong>Spread:</strong>{" "}
-                  {odds?.spread
-                    ? `(${odds.spread.value})`
-                    : "N/A"}
-                </div>
+                {/* Odds Grid */}
+                <div style={oddsGrid}>
+                  {/* HOME TEAM */}
+                  <div style={oddsTeamCol}>
+                    <div style={teamHeader}>{g.home_team}</div>
 
-                <div>
-                  <strong>Total:</strong>{" "}
-                  {odds?.total ? odds.total.value : "N/A"}
+                    <div style={oddsRow}>
+                      <span>Open</span>
+                      <strong>{odds?.spread?.value ? `o${odds.spread.value}` : "N/A"}</strong>
+                    </div>
+
+                    <div style={oddsRow}>
+                      <span>ML</span>
+                      <strong>{odds?.moneyline?.home ?? "N/A"}</strong>
+                    </div>
+
+                    <div style={oddsRow}>
+                      <span>Total</span>
+                      <strong>{odds?.total?.value ? `o${odds.total.value}` : "N/A"}</strong>
+                    </div>
+
+                    <div style={oddsRow}>
+                      <span>Spread</span>
+                      <strong>{odds?.spread?.home_payout ?? odds?.spread?.home ?? "N/A"}</strong>
+                    </div>
+                  </div>
+
+                  {/* AWAY TEAM */}
+                  <div style={oddsTeamCol}>
+                    <div style={teamHeader}>{g.away_team}</div>
+
+                    <div style={oddsRow}>
+                      <span>Open</span>
+                      <strong>{odds?.spread?.value ? `u${odds.spread.value}` : "N/A"}</strong>
+                    </div>
+
+                    <div style={oddsRow}>
+                      <span>ML</span>
+                      <strong>{odds?.moneyline?.away ?? "N/A"}</strong>
+                    </div>
+
+                    <div style={oddsRow}>
+                      <span>Total</span>
+                      <strong>{odds?.total?.value ? `u${odds.total.value}` : "N/A"}</strong>
+                    </div>
+
+                    <div style={oddsRow}>
+                      <span>Spread</span>
+                      <strong>{odds?.spread?.away_payout ?? odds?.spread?.away ?? "N/A"}</strong>
+                    </div>
+                  </div>
                 </div>
               </div>
+
 
               {/* FOOTER INFO */}
               <div style={footerInfo}>
@@ -340,6 +431,53 @@ async function loadTeamLogos() {
           );
         })}
       </div>
+
+      {showInjury && injuryData && (
+        <div style={injuryModalOverlay} onClick={() => setShowInjury(false)}>
+          <div style={injuryModal} onClick={(e) => e.stopPropagation()}>
+            <div style={{ textAlign: "center", marginBottom: 20 }}>
+              <img
+                src={getTeamLogo("nfl", injuryData.team)}
+                alt={injuryData.team}
+                style={{
+                  width: 80,
+                  height: 80,
+                  objectFit: "contain",
+                  marginBottom: 10
+                }}
+              />
+              <h2 style={{ marginBottom: 5 }}>
+                {injuryData.team} — Injuries
+              </h2>
+              <p style={{ opacity: 0.7 }}>
+                Week {injuryData.week} • {injuryData.season}
+              </p>
+            </div>
+
+            {injuryData.injuries.length === 0 ? (
+              <p>No injuries reported.</p>
+            ) : (
+              injuryData.injuries.map((p) => (
+                <div key={p.playerId} style={injuryCard}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                    <div>
+                      <strong>{p.name}</strong> — {p.position} #{p.number}
+                      <div style={{ fontSize: 13, opacity: 0.8 }}>
+                        {p.injury.bodyPart} • {p.injury.status}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+
+            <button style={closeBtn} onClick={() => setShowInjury(false)}>
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
@@ -547,4 +685,122 @@ const teamLogo = {
   width: 48,
   height: 48,
   objectFit: "contain",
+};
+
+const injuryBtnRow = {
+  display: "flex",
+  justifyContent: "space-between",
+  gap: 10,
+  marginTop: 10,
+};
+
+
+
+const injuryBtn = {
+  flex: 1,
+  padding: "8px 10px",
+  background: "linear-gradient(90deg, #ff3b3b, #ff6b6b)",
+  borderRadius: 6,
+  border: "none",
+  color: "white",
+  cursor: "pointer",
+  fontWeight: 600,
+  textAlign: "center",
+  whiteSpace: "nowrap",
+  fontSize: 13,
+  transition: "0.2s ease",
+};
+
+injuryBtn[":hover"] = {
+  opacity: 0.85,
+  transform: "translateY(-2px)",
+};
+
+
+const injuryModalOverlay = {
+  position: "fixed",
+  top: 0,
+  left: 0,
+  width: "100vw",
+  height: "100vh",
+  background: "rgba(0,0,0,0.7)",
+  display: "flex",
+  justifyContent: "center",
+  alignItems: "center",
+  zIndex: 9999,
+};
+
+const injuryModal = {
+  background: "#1a1d23",
+  padding: 20,
+  borderRadius: 12,
+  width: "90%",
+  maxWidth: 600,
+  maxHeight: "80vh",
+  overflowY: "auto",
+  color: "white",
+  border: "1px solid #333",
+};
+
+const injuryCard = {
+  background: "#23262d",
+  borderRadius: 10,
+  padding: 12,
+  margin: "10px 0",
+  border: "1px solid #333",
+};
+
+const closeBtn = {
+  marginTop: 20,
+  width: "100%",
+  padding: 10,
+  borderRadius: 6,
+  background: "#444",
+  border: "none",
+  color: "white",
+  fontWeight: 600,
+  cursor: "pointer",
+};
+
+
+const espnOddsBox = {
+  marginTop: 10,
+  background: "#181b20",
+  borderRadius: 10,
+  padding: 15,
+  border: "1px solid #2b2e34",
+};
+
+const oddsSummary = {
+  fontSize: 14,
+  opacity: 0.8,
+  paddingBottom: 10,
+  borderBottom: "1px solid #2b2e34",
+  marginBottom: 10,
+};
+
+const oddsGrid = {
+  display: "grid",
+  gridTemplateColumns: "1fr 1fr",
+  gap: 20,
+};
+
+const oddsTeamCol = {
+  display: "flex",
+  flexDirection: "column",
+  gap: 10,
+};
+
+const teamHeader = {
+  fontWeight: "bold",
+  fontSize: 15,
+  marginBottom: 5,
+};
+
+const oddsRow = {
+  display: "flex",
+  justifyContent: "space-between",
+  background: "#23262d",
+  borderRadius: 6,
+  padding: "8px 10px",
 };
